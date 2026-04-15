@@ -1,0 +1,33 @@
+"use client";
+
+import { setCurrentUser, type User } from "@/lib/user";
+
+export default function UserPicker({ onPick }: { onPick: (user: User) => void }) {
+  function pick(user: User) {
+    setCurrentUser(user);
+    onPick(user);
+  }
+
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center gap-8 p-8">
+      <div className="text-center">
+        <h1 className="text-5xl font-bold tracking-tight">Junior</h1>
+        <p className="mt-2 text-muted-foreground">Who's using this device?</p>
+      </div>
+      <div className="flex flex-col gap-4 w-full max-w-xs">
+        <button
+          onClick={() => pick("rob")}
+          className="rounded-2xl bg-accent text-accent-foreground py-5 text-2xl font-semibold shadow-sm active:scale-[0.98] transition"
+        >
+          I'm Rob
+        </button>
+        <button
+          onClick={() => pick("camille")}
+          className="rounded-2xl bg-surface border border-surface-border py-5 text-2xl font-semibold shadow-sm active:scale-[0.98] transition"
+        >
+          I'm Camille
+        </button>
+      </div>
+    </div>
+  );
+}
