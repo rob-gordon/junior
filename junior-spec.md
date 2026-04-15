@@ -19,7 +19,7 @@ Two hardcoded users: **Rob** and **Camille**. On first visit, the user taps "I'm
 | Styling | Tailwind CSS |
 | Database | Turso (libSQL) — fresh instance |
 | ORM | None. Raw SQL via `@libsql/client`. Single `migrations.sql` file run manually against the DB. |
-| AI | Vercel AI SDK (`ai` package) with Zod. Model: `"anthropic/claude-sonnet-4.5"` as a plain string. Env var: `AI_GATEWAY_TOKEN`. Use `generateText` + `Output.object` for structured output. **Do not install a separate provider package.** |
+| AI | Vercel AI SDK (`ai` package) with Zod. Model: `"anthropic/claude-sonnet-4.5"` as a plain string. Env var: `AI_GATEWAY_API_KEY`. Use `generateText` + `Output.object` for structured output. **Do not install a separate provider package.** |
 | Hosting | Vercel (`.vercel.app` domain) |
 | PWA | Built-in Next.js manifest via `app/manifest.ts`. No third-party PWA package. Add to Home Screen only. No offline support. No service worker. No push notifications. Show a "No internet connection" banner when offline. |
 
@@ -130,7 +130,7 @@ const { output } = await generateText({
 });
 ```
 
-Env: `AI_GATEWAY_TOKEN` (not `ANTHROPIC_API_KEY`).
+Env: `AI_GATEWAY_API_KEY` (not `ANTHROPIC_API_KEY`).
 
 ### Tournament
 
@@ -334,7 +334,7 @@ junior/
 ```
 TURSO_DATABASE_URL=libsql://junior-<org>.turso.io
 TURSO_AUTH_TOKEN=...
-AI_GATEWAY_TOKEN=...
+AI_GATEWAY_API_KEY=...
 ```
 
 ---

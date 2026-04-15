@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { addNames } from "@/lib/api";
+import BulkAddReview from "@/components/BulkAddReview";
 
 export default function AddPage() {
   const [name, setName] = useState("");
@@ -98,10 +99,11 @@ export default function AddPage() {
         </form>
       </section>
 
-      <section className="rounded-2xl border border-dashed border-surface-border p-5 text-center text-muted-foreground">
-        <h3 className="font-semibold text-foreground mb-1">Bulk AI add</h3>
-        <p className="text-sm">Coming in Phase 2.</p>
-      </section>
+      <BulkAddReview
+        onDone={(n) =>
+          setFlash(n > 0 ? `Added ${n} ${n === 1 ? "name" : "names"}` : "No new names added")
+        }
+      />
     </div>
   );
 }

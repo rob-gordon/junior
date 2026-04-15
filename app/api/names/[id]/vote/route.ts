@@ -23,14 +23,33 @@ export async function PATCH(
   }
 
   const column = user === "rob" ? "rob_vote" : "camille_vote";
+
+  // Transition guard: only UPDATE when the value actually changes, so idempotent
+  // re-votes are no-ops and match celebration only fires on a real transition.
   const result = await db.execute({
-    sql: `UPDATE names SET ${column} = ? WHERE id = ?`,
-    args: [vote, numericId],
+    sql: `UPDATE names SET ${column} = ?
+          WHERE id = ? AND (${column} IS NULL OR ${column} != ?)
+          RETURNING rob_vote, camille_vote`,
+    args: [vote, numericId, vote],
   });
 
   if (result.rowsAffected === 0) {
-    return NextResponse.json({ error: "name not found" }, { status: 404 });
+    // Either the id doesn't exist, or the value was already set. Distinguish.
+    const exists = await db.execute({
+      sql: "SELECT 1 FROM names WHERE id = ?",
+      args: [numericId],
+    });
+    if (exists.rows.length === 0) {
+      return NextResponse.json({ error: "name not found" }, { status: 404 });
+    }
+    return NextResponse.json({ ok: true, match: false });
   }
 
-  return NextResponse.json({ ok: true });
+  const row = result.rows[0];
+  const isMatch =
+    vote === "yes" &&
+    row.rob_vote === "yes" &&
+    row.camille_vote === "yes";
+
+  return NextResponse.json({ ok: true, match: isMatch });
 }
