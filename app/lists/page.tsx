@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { getCurrentUser, type User } from "@/lib/user";
 import { getNames, voteName, type Filter, type NameRow } from "@/lib/api";
 import SwipeCard from "@/components/SwipeCard";
 import NameCard from "@/components/NameCard";
-import NameRowCard from "@/components/NameRow";
+import SortedNameList from "@/components/SortedNameList";
 import MatchCelebration from "@/components/MatchCelebration";
 import { AnimatePresence } from "framer-motion";
 
@@ -18,51 +18,65 @@ const TABS: { id: Filter; label: string }[] = [
 export default function ListsPage() {
   const [user, setUser] = useState<User | null>(null);
   const [filter, setFilter] = useState<Filter>("new");
-  const [names, setNames] = useState<NameRow[]>([]);
+  // The "new" tab still loads via this page; yes/no are owned by SortedNameList.
+  const [newNames, setNewNames] = useState<NameRow[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [expandedId, setExpandedId] = useState<number | null>(null);
   const [celebratedName, setCelebratedName] = useState<NameRow | null>(null);
+  // Incremented to force a re-fetch (used by the Retry button).
+  const [reloadSeq, setReloadSeq] = useState(0);
 
   useEffect(() => {
     setUser(getCurrentUser());
   }, []);
 
-  const refetch = useCallback(
-    async (showLoading = false) => {
-      if (!user) return;
-      if (showLoading) setLoading(true);
-      setError(null);
-      try {
-        const res = await getNames(user, filter);
-        setNames(res.names);
-      } catch (e) {
-        setError((e as Error).message);
-      } finally {
-        if (showLoading) setLoading(false);
-      }
-    },
-    [user, filter],
-  );
-
+  // Main fetch for the New tab only. Cancellable.
   useEffect(() => {
     if (!user) return;
-    refetch(true);
-  }, [user, filter, refetch]);
+    if (filter !== "new") return;
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    getNames(user, "new")
+      .then((res) => {
+        if (cancelled) return;
+        setNewNames(res.names);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setError((e as Error).message);
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user, filter, reloadSeq]);
 
+  // Focus refetch for the New tab only — yes/no lists are paginated and
+  // user-driven (search + scroll), so we don't disrupt them on visibility.
   useEffect(() => {
+    if (!user) return;
+    if (filter !== "new") return;
     function onVisible() {
-      if (document.visibilityState === "visible") refetch(false);
+      if (document.visibilityState !== "visible") return;
+      getNames(user!, "new")
+        .then((res) => setNewNames(res.names))
+        .catch(() => {
+          /* silent */
+        });
     }
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
-  }, [refetch]);
+  }, [user, filter]);
 
-  async function handleVote(id: number, vote: "yes" | "no") {
+  async function handleNewVote(id: number, vote: "yes" | "no") {
     if (!user) return;
-    const voted = names.find((n) => n.id === id);
+    const voted = newNames?.find((n) => n.id === id);
     const res = await voteName(id, user, vote);
-    setNames((prev) => prev.filter((n) => n.id !== id));
+    setNewNames((prev) => (prev ? prev.filter((n) => n.id !== id) : prev));
     if (res.match && voted) {
       setCelebratedName(voted);
     }
@@ -70,6 +84,8 @@ export default function ListsPage() {
 
   if (!user) return null;
 
+  const names = newNames ?? [];
+  const showSkeleton = filter === "new" && loading && !newNames;
   const topName = names[0];
   const nextName = names[1];
 
@@ -90,7 +106,7 @@ export default function ListsPage() {
             key={t.id}
             onClick={() => {
               setFilter(t.id);
-              setExpandedId(null);
+              setError(null);
             }}
             className={`flex-1 rounded-full py-2 text-sm font-medium border transition ${
               filter === t.id
@@ -103,7 +119,7 @@ export default function ListsPage() {
         ))}
       </div>
 
-      {filter === "new" && (
+      {filter === "new" && newNames && (
         <p className="text-sm text-muted-foreground mb-4 text-center">
           {names.length} {names.length === 1 ? "name" : "names"} to sort
         </p>
@@ -113,7 +129,7 @@ export default function ListsPage() {
         <div className="rounded-xl border border-accent/40 bg-accent/10 text-accent p-3 text-sm mb-4 flex items-center justify-between gap-3">
           <span className="truncate">{error}</span>
           <button
-            onClick={() => refetch(true)}
+            onClick={() => setReloadSeq((n) => n + 1)}
             className="shrink-0 rounded-full border border-accent/60 px-3 py-1 text-xs font-semibold"
           >
             Retry
@@ -121,10 +137,10 @@ export default function ListsPage() {
         </div>
       )}
 
-      {loading && names.length === 0 ? (
-        <div className="rounded-2xl border border-surface-border bg-surface h-[360px] animate-pulse" />
-      ) : filter === "new" ? (
-        names.length === 0 ? (
+      {filter === "new" ? (
+        showSkeleton ? (
+          <div className="rounded-2xl border border-surface-border bg-surface h-[360px] animate-pulse" />
+        ) : names.length === 0 ? (
           <p className="text-center text-muted-foreground py-12 text-lg">
             All caught up 🎉
           </p>
@@ -145,7 +161,7 @@ export default function ListsPage() {
                 <SwipeCard
                   key={topName.id}
                   name={topName}
-                  onVote={(vote) => handleVote(topName.id, vote)}
+                  onVote={(vote) => handleNewVote(topName.id, vote)}
                   onError={(e) => setError(e.message)}
                 />
               )}
@@ -154,7 +170,7 @@ export default function ListsPage() {
               <button
                 onClick={() =>
                   topName &&
-                  handleVote(topName.id, "no").catch((e) =>
+                  handleNewVote(topName.id, "no").catch((e) =>
                     setError((e as Error).message),
                   )
                 }
@@ -165,7 +181,7 @@ export default function ListsPage() {
               <button
                 onClick={() =>
                   topName &&
-                  handleVote(topName.id, "yes").catch((e) =>
+                  handleNewVote(topName.id, "yes").catch((e) =>
                     setError((e as Error).message),
                   )
                 }
@@ -176,57 +192,14 @@ export default function ListsPage() {
             </div>
           </>
         )
-      ) : names.length === 0 ? (
-        <p className="text-center text-muted-foreground py-12">
-          {filter === "yes" ? "No yeses yet." : "No nos yet."}
-        </p>
       ) : (
-        <ul className="flex flex-col gap-3">
-          {names.map((n) => {
-            const targetVote = filter === "yes" ? "no" : "yes";
-            const swipeDirection = filter === "yes" ? "left" : "right";
-            return (
-              <li key={n.id}>
-                <NameRowCard
-                  name={n}
-                  swipeDirection={swipeDirection}
-                  expanded={expandedId === n.id}
-                  onToggle={() =>
-                    setExpandedId(expandedId === n.id ? null : n.id)
-                  }
-                  onCommit={() => handleVote(n.id, targetVote)}
-                  onError={(e: Error) => setError(e.message)}
-                />
-                <div className="flex gap-2 mt-2">
-                  {filter === "yes" && (
-                    <button
-                      onClick={() =>
-                        handleVote(n.id, "no").catch((e) =>
-                          setError((e as Error).message),
-                        )
-                      }
-                      className="flex-1 rounded-full border border-surface-border py-2 text-sm font-medium"
-                    >
-                      Move to No
-                    </button>
-                  )}
-                  {filter === "no" && (
-                    <button
-                      onClick={() =>
-                        handleVote(n.id, "yes").catch((e) =>
-                          setError((e as Error).message),
-                        )
-                      }
-                      className="flex-1 rounded-full bg-accent text-accent-foreground py-2 text-sm font-medium"
-                    >
-                      Move to Yes
-                    </button>
-                  )}
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+        <SortedNameList
+          key={filter}
+          user={user}
+          filter={filter}
+          onMatch={setCelebratedName}
+          onError={(e) => setError(e.message)}
+        />
       )}
     </div>
     </>

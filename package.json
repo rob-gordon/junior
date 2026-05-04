@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@libsql/client": "^0.17.2",
+    "@tanstack/react-virtual": "^3.13.24",
     "ai": "^6.0.160",
     "framer-motion": "^12.38.0",
     "next": "16.2.3",

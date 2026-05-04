@@ -11,6 +11,16 @@ function isFilter(v: string | null): v is Filter {
   return v === "new" || v === "yes" || v === "no";
 }
 
+function parseCursor(raw: string | null): { added_at: string; id: number } | null {
+  if (!raw) return null;
+  const idx = raw.lastIndexOf("|");
+  if (idx <= 0) return null;
+  const added_at = raw.slice(0, idx);
+  const id = Number(raw.slice(idx + 1));
+  if (!Number.isInteger(id) || id <= 0) return null;
+  return { added_at, id };
+}
+
 export async function GET(request: NextRequest) {
   const user = request.nextUrl.searchParams.get("user");
   const filter = request.nextUrl.searchParams.get("filter");
@@ -19,20 +29,51 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "invalid user or filter" }, { status: 400 });
   }
 
+  const q = request.nextUrl.searchParams.get("q")?.trim() ?? "";
+  const cursor = parseCursor(request.nextUrl.searchParams.get("cursor"));
+  const rawLimit = Number(request.nextUrl.searchParams.get("limit"));
+  const limit = Math.max(1, Math.min(100, Number.isFinite(rawLimit) && rawLimit > 0 ? Math.floor(rawLimit) : 50));
+
   const column = user === "rob" ? "rob_vote" : "camille_vote";
-  const where = filter === "new" ? `${column} IS NULL` : `${column} = ?`;
-  const args = filter === "new" ? [] : [filter];
+  const clauses: string[] = [];
+  const args: (string | number)[] = [];
+
+  clauses.push(filter === "new" ? `${column} IS NULL` : `${column} = ?`);
+  if (filter !== "new") args.push(filter);
+
+  // search and cursor only apply to yes/no lists
+  if (filter !== "new" && q.length > 0) {
+    clauses.push(`LOWER(name) LIKE LOWER(?)`);
+    args.push(`%${q}%`);
+  }
+  if (filter !== "new" && cursor) {
+    // ORDER BY added_at DESC, id DESC — next page comes after the cursor pair
+    clauses.push(`(added_at < ? OR (added_at = ? AND id < ?))`);
+    args.push(cursor.added_at, cursor.added_at, cursor.id);
+  }
+
+  args.push(limit);
 
   const result = await db.execute({
     sql: `SELECT id, name, meaning, origin, description, added_at,
                  rob_vote, camille_vote, rob_elo, camille_elo
           FROM names
-          WHERE ${where}
-          ORDER BY added_at DESC`,
+          WHERE ${clauses.join(" AND ")}
+          ORDER BY added_at DESC, id DESC
+          LIMIT ?`,
     args,
   });
 
-  return NextResponse.json({ names: result.rows });
+  const rows = result.rows as unknown as {
+    id: number;
+    added_at: string;
+  }[];
+  const nextCursor =
+    filter !== "new" && rows.length === limit
+      ? `${rows[rows.length - 1].added_at}|${rows[rows.length - 1].id}`
+      : null;
+
+  return NextResponse.json({ names: result.rows, nextCursor });
 }
 
 export async function POST(request: NextRequest) {

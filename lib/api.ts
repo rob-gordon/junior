@@ -35,9 +35,20 @@ async function jsonFetch<T>(input: RequestInfo, init?: RequestInit): Promise<T> 
   return res.json() as Promise<T>;
 }
 
-export function getNames(user: User, filter: Filter): Promise<{ names: NameRow[] }> {
+export type GetNamesOptions = { q?: string; cursor?: string; limit?: number };
+export type GetNamesResponse = { names: NameRow[]; nextCursor: string | null };
+
+export function getNames(
+  user: User,
+  filter: Filter,
+  opts: GetNamesOptions = {},
+  signal?: AbortSignal,
+): Promise<GetNamesResponse> {
   const params = new URLSearchParams({ user, filter });
-  return jsonFetch(`/api/names?${params.toString()}`);
+  if (opts.q) params.set("q", opts.q);
+  if (opts.cursor) params.set("cursor", opts.cursor);
+  if (opts.limit != null) params.set("limit", String(opts.limit));
+  return jsonFetch(`/api/names?${params.toString()}`, { signal });
 }
 
 export function addNames(names: NameInput[]): Promise<{ inserted: number }> {
