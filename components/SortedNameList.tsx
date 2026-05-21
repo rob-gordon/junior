@@ -8,14 +8,54 @@ import NameRowCard from "./NameRow";
 
 type Props = {
   user: User;
-  filter: "yes" | "no";
+  filter: "yes" | "no" | "reconsider";
   onMatch: (name: NameRow) => void;
   onError: (err: Error) => void;
+  onAfterVote?: () => void;
 };
 
 const PAGE_SIZE = 50;
 
-export default function SortedNameList({ user, filter, onMatch, onError }: Props) {
+const FILTER_CONFIG = {
+  yes: {
+    swipeDirection: "left" as const,
+    moveLabel: "Move to No",
+    moveTarget: "no" as const,
+    moveBtnClass:
+      "flex-1 rounded-full border border-surface-border py-2 text-sm font-medium",
+    searchPlaceholder: "Search yeses…",
+    emptyPrimary: "No yeses yet.",
+    emptySub: null as string | null,
+  },
+  no: {
+    swipeDirection: "right" as const,
+    moveLabel: "Move to Yes",
+    moveTarget: "yes" as const,
+    moveBtnClass:
+      "flex-1 rounded-full bg-accent text-accent-foreground py-2 text-sm font-medium",
+    searchPlaceholder: "Search nos…",
+    emptyPrimary: "No nos yet.",
+    emptySub: null as string | null,
+  },
+  reconsider: {
+    swipeDirection: "right" as const,
+    moveLabel: "Move to Yes",
+    moveTarget: "yes" as const,
+    moveBtnClass:
+      "flex-1 rounded-full bg-sage text-white py-2 text-sm font-medium",
+    searchPlaceholder: "",
+    emptyPrimary: "No second looks pending.",
+    emptySub: null as string | null,
+  },
+};
+
+export default function SortedNameList({
+  user,
+  filter,
+  onMatch,
+  onError,
+  onAfterVote,
+}: Props) {
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [names, setNames] = useState<NameRow[]>([]);
@@ -27,9 +67,11 @@ export default function SortedNameList({ user, filter, onMatch, onError }: Props
   // Stable refs for parent callbacks so they don't trigger refetch loops.
   const onErrorRef = useRef(onError);
   const onMatchRef = useRef(onMatch);
+  const onAfterVoteRef = useRef(onAfterVote);
   useEffect(() => {
     onErrorRef.current = onError;
     onMatchRef.current = onMatch;
+    onAfterVoteRef.current = onAfterVote;
   });
 
   // Debounce search input.
@@ -93,6 +135,7 @@ export default function SortedNameList({ user, filter, onMatch, onError }: Props
     try {
       const res = await voteName(id, user, vote);
       if (res.match && target) onMatchRef.current(target);
+      onAfterVoteRef.current?.();
     } catch (e) {
       // Restore on failure so the user can retry.
       if (target) {
@@ -143,36 +186,42 @@ export default function SortedNameList({ user, filter, onMatch, onError }: Props
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [virtualItems, nextCursor, loadingMore, names.length]);
 
-  const swipeDirection = filter === "yes" ? "left" : "right";
-  const moveLabel = filter === "yes" ? "Move to No" : "Move to Yes";
-  const moveTarget: "yes" | "no" = filter === "yes" ? "no" : "yes";
-  const moveBtnClass =
-    filter === "yes"
-      ? "flex-1 rounded-full border border-surface-border py-2 text-sm font-medium"
-      : "flex-1 rounded-full bg-accent text-accent-foreground py-2 text-sm font-medium";
+  const cfg = FILTER_CONFIG[filter];
+  const { swipeDirection, moveLabel, moveTarget, moveBtnClass } = cfg;
+  const partnerLabel = user === "rob" ? "Camille" : "Rob";
+  const partnerHeader = `Names ${partnerLabel} loves`;
+  const reconsiderSub = `Nothing new from ${partnerLabel} right now.`;
 
   return (
     <div>
-      <div className="relative mb-4">
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder={filter === "yes" ? "Search yeses…" : "Search nos…"}
-          aria-label="Search names"
-          className="w-full rounded-full border border-surface-border bg-surface text-foreground placeholder:text-muted-foreground py-2.5 pl-4 pr-10 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
-        />
-        {query && (
-          <button
-            type="button"
-            onClick={() => setQuery("")}
-            aria-label="Clear search"
-            className="absolute right-2 top-1/2 -translate-y-1/2 grid place-items-center w-7 h-7 rounded-full text-muted-foreground hover:bg-surface-border/60"
-          >
-            ×
-          </button>
-        )}
-      </div>
+      {filter === "reconsider" ? (
+        <div className="mb-4">
+          <p className="text-xs uppercase tracking-wider text-muted-foreground">
+            {partnerHeader}
+          </p>
+        </div>
+      ) : (
+        <div className="relative mb-4">
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={cfg.searchPlaceholder}
+            aria-label="Search names"
+            className="w-full rounded-full border border-surface-border bg-surface text-foreground placeholder:text-muted-foreground py-2.5 pl-4 pr-10 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              aria-label="Clear search"
+              className="absolute right-2 top-1/2 -translate-y-1/2 grid place-items-center w-7 h-7 rounded-full text-muted-foreground hover:bg-surface-border/60"
+            >
+              ×
+            </button>
+          )}
+        </div>
+      )}
 
       {loadingInitial ? (
         <div className="rounded-2xl border border-surface-border bg-surface h-[360px] animate-pulse" />
@@ -182,9 +231,14 @@ export default function SortedNameList({ user, filter, onMatch, onError }: Props
             No matches for &ldquo;{debouncedQuery}&rdquo;.
           </p>
         ) : (
-          <p className="text-center text-muted-foreground py-12">
-            {filter === "yes" ? "No yeses yet." : "No nos yet."}
-          </p>
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">{cfg.emptyPrimary}</p>
+            {filter === "reconsider" && (
+              <p className="text-sm text-muted-foreground mt-2">
+                {reconsiderSub}
+              </p>
+            )}
+          </div>
         )
       ) : (
         <>

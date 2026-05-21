@@ -1,7 +1,7 @@
 import type { User } from "./user";
 
 export type Vote = "yes" | "no";
-export type Filter = "new" | "yes" | "no";
+export type Filter = "new" | "yes" | "no" | "reconsider";
 
 export type NameRow = {
   id: number;

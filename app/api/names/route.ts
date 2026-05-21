@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import type { Filter } from "@/lib/api";
 
-type Filter = "new" | "yes" | "no";
 type User = "rob" | "camille";
 
 function isUser(v: string | null): v is User {
   return v === "rob" || v === "camille";
 }
 function isFilter(v: string | null): v is Filter {
-  return v === "new" || v === "yes" || v === "no";
+  return v === "new" || v === "yes" || v === "no" || v === "reconsider";
 }
 
 function parseCursor(raw: string | null): { added_at: string; id: number } | null {
@@ -38,18 +38,25 @@ export async function GET(request: NextRequest) {
   const clauses: string[] = [];
   const args: (string | number)[] = [];
 
-  clauses.push(filter === "new" ? `${column} IS NULL` : `${column} = ?`);
-  if (filter !== "new") args.push(filter);
+  if (filter === "reconsider") {
+    const myCol = user === "rob" ? "rob_vote" : "camille_vote";
+    const partnerCol = user === "rob" ? "camille_vote" : "rob_vote";
+    clauses.push(`${myCol} = ? AND ${partnerCol} = ?`);
+    args.push("no", "yes");
+  } else {
+    clauses.push(filter === "new" ? `${column} IS NULL` : `${column} = ?`);
+    if (filter !== "new") args.push(filter);
 
-  // search and cursor only apply to yes/no lists
-  if (filter !== "new" && q.length > 0) {
-    clauses.push(`LOWER(name) LIKE LOWER(?)`);
-    args.push(`%${q}%`);
-  }
-  if (filter !== "new" && cursor) {
-    // ORDER BY added_at DESC, id DESC — next page comes after the cursor pair
-    clauses.push(`(added_at < ? OR (added_at = ? AND id < ?))`);
-    args.push(cursor.added_at, cursor.added_at, cursor.id);
+    // search and cursor only apply to yes/no lists
+    if (filter !== "new" && q.length > 0) {
+      clauses.push(`LOWER(name) LIKE LOWER(?)`);
+      args.push(`%${q}%`);
+    }
+    if (filter !== "new" && cursor) {
+      // ORDER BY added_at DESC, id DESC — next page comes after the cursor pair
+      clauses.push(`(added_at < ? OR (added_at = ? AND id < ?))`);
+      args.push(cursor.added_at, cursor.added_at, cursor.id);
+    }
   }
 
   args.push(limit);
@@ -69,8 +76,10 @@ export async function GET(request: NextRequest) {
     added_at: string;
   }[];
   const nextCursor =
-    filter !== "new" && rows.length === limit
-      ? `${rows[rows.length - 1].added_at}|${rows[rows.length - 1].id}`
+    filter === "yes" || filter === "no"
+      ? rows.length === limit
+        ? `${rows[rows.length - 1].added_at}|${rows[rows.length - 1].id}`
+        : null
       : null;
 
   return NextResponse.json({ names: result.rows, nextCursor });

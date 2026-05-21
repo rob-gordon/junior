@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getCurrentUser, type User } from "@/lib/user";
 import { getNames, voteName, type Filter, type NameRow } from "@/lib/api";
 import SwipeCard from "@/components/SwipeCard";
@@ -8,11 +8,15 @@ import NameCard from "@/components/NameCard";
 import SortedNameList from "@/components/SortedNameList";
 import MatchCelebration from "@/components/MatchCelebration";
 import { AnimatePresence } from "framer-motion";
+import { Sparkles, type LucideIcon } from "lucide-react";
 
-const TABS: { id: Filter; label: string }[] = [
+type TabDef = { id: Filter; label?: string; icon?: LucideIcon };
+
+const TABS: TabDef[] = [
   { id: "new", label: "New" },
   { id: "yes", label: "Yes" },
   { id: "no", label: "No" },
+  { id: "reconsider", icon: Sparkles },
 ];
 
 export default function ListsPage() {
@@ -25,10 +29,45 @@ export default function ListsPage() {
   const [celebratedName, setCelebratedName] = useState<NameRow | null>(null);
   // Incremented to force a re-fetch (used by the Retry button).
   const [reloadSeq, setReloadSeq] = useState(0);
+  const [reconsiderCount, setReconsiderCount] = useState<number | null>(null);
+  const reconsiderAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     setUser(getCurrentUser());
   }, []);
+
+  const refetchReconsiderCount = useCallback(() => {
+    if (!user) return;
+    reconsiderAbortRef.current?.abort();
+    const ctrl = new AbortController();
+    reconsiderAbortRef.current = ctrl;
+    getNames(user, "reconsider", {}, ctrl.signal)
+      .then((res) => {
+        if (ctrl.signal.aborted) return;
+        setReconsiderCount(res.names.length);
+      })
+      .catch((e) => {
+        if ((e as Error).name === "AbortError") return;
+        // silent — badge stays at last known count
+      });
+  }, [user]);
+
+  // Initial + user-change reconsider count fetch.
+  useEffect(() => {
+    if (!user) return;
+    refetchReconsiderCount();
+  }, [user, refetchReconsiderCount]);
+
+  // Visibility refetch for the reconsider count — fires regardless of current filter.
+  useEffect(() => {
+    if (!user) return;
+    function onVisible() {
+      if (document.visibilityState !== "visible") return;
+      refetchReconsiderCount();
+    }
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [user, refetchReconsiderCount]);
 
   // Main fetch for the New tab only. Cancellable.
   useEffect(() => {
@@ -80,6 +119,7 @@ export default function ListsPage() {
     if (res.match && voted) {
       setCelebratedName(voted);
     }
+    refetchReconsiderCount();
   }
 
   if (!user) return null;
@@ -101,22 +141,62 @@ export default function ListsPage() {
       </AnimatePresence>
     <div className="max-w-md mx-auto px-4 pt-6 pb-8">
       <div className="flex gap-2 mb-6">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => {
-              setFilter(t.id);
-              setError(null);
-            }}
-            className={`flex-1 rounded-full py-2 text-sm font-medium border transition ${
-              filter === t.id
-                ? "bg-accent text-accent-foreground border-accent"
-                : "bg-surface text-foreground border-surface-border"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
+        {TABS.map((t) => {
+          const isActive = filter === t.id;
+          const isIconOnly = !t.label && t.icon;
+          const Icon = t.icon;
+          if (isIconOnly && Icon) {
+            const hasItems = (reconsiderCount ?? 0) > 0;
+            const iconColor = isActive
+              ? "text-accent-foreground"
+              : reconsiderCount === null
+                ? "text-foreground"
+                : hasItems
+                  ? "text-foreground"
+                  : "text-muted-foreground";
+            return (
+              <button
+                key={t.id}
+                onClick={() => {
+                  setFilter(t.id);
+                  setError(null);
+                }}
+                aria-label={`Reconsider${hasItems ? ` (${reconsiderCount} names)` : ""}`}
+                className={`relative shrink-0 px-4 rounded-full py-2 border transition ${
+                  isActive
+                    ? "bg-accent border-accent"
+                    : "bg-surface border-surface-border"
+                }`}
+              >
+                <Icon className={`w-4 h-4 ${iconColor}`} aria-hidden />
+                {hasItems && (
+                  <span
+                    className="absolute -top-1 -right-1 rounded-full bg-sage text-white text-[10px] w-4 h-4 grid place-items-center"
+                    aria-hidden
+                  >
+                    {reconsiderCount}
+                  </span>
+                )}
+              </button>
+            );
+          }
+          return (
+            <button
+              key={t.id}
+              onClick={() => {
+                setFilter(t.id);
+                setError(null);
+              }}
+              className={`flex-1 rounded-full py-2 text-sm font-medium border transition ${
+                isActive
+                  ? "bg-accent text-accent-foreground border-accent"
+                  : "bg-surface text-foreground border-surface-border"
+              }`}
+            >
+              {t.label}
+            </button>
+          );
+        })}
       </div>
 
       {filter === "new" && newNames && (
@@ -199,6 +279,7 @@ export default function ListsPage() {
           filter={filter}
           onMatch={setCelebratedName}
           onError={(e) => setError(e.message)}
+          onAfterVote={refetchReconsiderCount}
         />
       )}
     </div>
