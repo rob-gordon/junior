@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { isUser } from "@/lib/user";
 
 export async function GET(request: NextRequest) {
   const user = request.nextUrl.searchParams.get("user");
-  if (user !== "rob" && user !== "camille") {
+  if (!isUser(user)) {
     return NextResponse.json({ error: "invalid user" }, { status: 400 });
   }
 
@@ -16,11 +17,11 @@ export async function GET(request: NextRequest) {
     : [];
 
   const baseCols = `id, name, meaning, origin, description, added_at,
-                    rob_vote, camille_vote, rob_elo, camille_elo`;
+                    user1_vote, user2_vote, user1_elo, user2_elo`;
 
   let result = await db.execute({
     sql: `SELECT ${baseCols} FROM names
-          WHERE rob_vote = 'yes' AND camille_vote = 'yes'
+          WHERE user1_vote = 'yes' AND user2_vote = 'yes'
           ${excludeIds.length ? `AND id NOT IN (${excludeIds.map(() => "?").join(",")})` : ""}
           ORDER BY RANDOM()
           LIMIT 2`,
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest) {
   if (result.rows.length < 2) {
     result = await db.execute({
       sql: `SELECT ${baseCols} FROM names
-            WHERE rob_vote = 'yes' AND camille_vote = 'yes'
+            WHERE user1_vote = 'yes' AND user2_vote = 'yes'
             ORDER BY RANDOM()
             LIMIT 2`,
       args: [],

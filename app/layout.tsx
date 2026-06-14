@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Fraunces } from "next/font/google";
 import "./globals.css";
 import AppShell from "@/components/AppShell";
+import { participantName } from "@/lib/participants";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -21,7 +22,7 @@ const fraunces = Fraunces({
 
 export const metadata: Metadata = {
   title: "Junior",
-  description: "Baby name picker for Rob & Camille",
+  description: `Baby name picker for ${participantName("user1")} & ${participantName("user2")}`,
 };
 
 export default function RootLayout({

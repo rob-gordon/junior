@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { getNames, voteName, type NameRow } from "@/lib/api";
 import type { User } from "@/lib/user";
+import { partnerName } from "@/lib/participants";
 import NameRowCard from "./NameRow";
 
 type Props = {
@@ -188,7 +189,7 @@ export default function SortedNameList({
 
   const cfg = FILTER_CONFIG[filter];
   const { swipeDirection, moveLabel, moveTarget, moveBtnClass } = cfg;
-  const partnerLabel = user === "rob" ? "Camille" : "Rob";
+  const partnerLabel = partnerName(user);
   const partnerHeader = `Names ${partnerLabel} loves`;
   const reconsiderSub = `Nothing new from ${partnerLabel} right now.`;
 

@@ -91,7 +91,7 @@ export default function MatchesPage() {
       ) : (
         <ul className="flex flex-col gap-3">
           {names.map((n, i) => {
-            const combined = Math.round((n.rob_elo + n.camille_elo) / 2);
+            const combined = Math.round((n.user1_elo + n.user2_elo) / 2);
             return (
               <li
                 key={n.id}

@@ -10,10 +10,10 @@ export type NameRow = {
   origin: string | null;
   description: string | null;
   added_at: string;
-  rob_vote: Vote | null;
-  camille_vote: Vote | null;
-  rob_elo: number;
-  camille_elo: number;
+  user1_vote: Vote | null;
+  user2_vote: Vote | null;
+  user1_elo: number;
+  user2_elo: number;
 };
 
 export type NameInput = {

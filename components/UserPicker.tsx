@@ -1,6 +1,7 @@
 "use client";
 
 import { setCurrentUser, type User } from "@/lib/user";
+import { participantName } from "@/lib/participants";
 
 export default function UserPicker({ onPick }: { onPick: (user: User) => void }) {
   function pick(user: User) {
@@ -16,16 +17,16 @@ export default function UserPicker({ onPick }: { onPick: (user: User) => void })
       </div>
       <div className="flex flex-col gap-4 w-full max-w-xs">
         <button
-          onClick={() => pick("rob")}
+          onClick={() => pick("user1")}
           className="rounded-2xl bg-accent text-accent-foreground py-5 text-2xl font-semibold shadow-sm active:scale-[0.98] transition"
         >
-          I'm Rob
+          I'm {participantName("user1")}
         </button>
         <button
-          onClick={() => pick("camille")}
+          onClick={() => pick("user2")}
           className="rounded-2xl bg-surface border border-surface-border py-5 text-2xl font-semibold shadow-sm active:scale-[0.98] transition"
         >
-          I'm Camille
+          I'm {participantName("user2")}
         </button>
       </div>
     </div>

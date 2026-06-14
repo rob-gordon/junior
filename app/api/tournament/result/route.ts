@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { updateElo } from "@/lib/elo";
+import { isUser, ELO_COL } from "@/lib/user";
 
 export async function POST(request: NextRequest) {
   const body = (await request.json()) as {
@@ -9,9 +10,10 @@ export async function POST(request: NextRequest) {
     loserId?: number;
   };
 
-  const { user, winnerId, loserId } = body;
+  const { winnerId, loserId } = body;
+  const user = body.user ?? null;
 
-  if (user !== "rob" && user !== "camille") {
+  if (!isUser(user)) {
     return NextResponse.json({ error: "invalid user" }, { status: 400 });
   }
   if (
@@ -25,7 +27,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const column = user === "rob" ? "rob_elo" : "camille_elo";
+  const column = ELO_COL[user];
 
   const result = await db.execute({
     sql: `SELECT id, ${column} AS elo FROM names WHERE id IN (?, ?)`,

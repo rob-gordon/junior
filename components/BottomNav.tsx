@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { User } from "@/lib/user";
+import { participantName } from "@/lib/participants";
 
 const TABS = [
   { href: "/lists", label: "My Lists" },
@@ -32,7 +33,7 @@ export default function BottomNav({ currentUser }: { currentUser: User }) {
         })}
       </ul>
       <div className="text-center text-[10px] text-muted-foreground pb-1">
-        signed in as {currentUser}
+        signed in as {participantName(currentUser)}
       </div>
     </nav>
   );

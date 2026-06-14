@@ -1,10 +1,11 @@
 import type { MetadataRoute } from "next";
+import { participantName } from "@/lib/participants";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Junior",
     short_name: "Junior",
-    description: "Baby name picker for Rob & Camille",
+    description: `Baby name picker for ${participantName("user1")} & ${participantName("user2")}`,
     start_url: "/",
     display: "standalone",
     background_color: "#faf8f5",

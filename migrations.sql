@@ -6,9 +6,9 @@ CREATE TABLE IF NOT EXISTS names (
   description TEXT,
   added_at TEXT NOT NULL DEFAULT (datetime('now')),
 
-  rob_vote TEXT CHECK (rob_vote IN ('yes', 'no')),
-  camille_vote TEXT CHECK (camille_vote IN ('yes', 'no')),
+  user1_vote TEXT CHECK (user1_vote IN ('yes', 'no')),
+  user2_vote TEXT CHECK (user2_vote IN ('yes', 'no')),
 
-  rob_elo REAL NOT NULL DEFAULT 1000,
-  camille_elo REAL NOT NULL DEFAULT 1000
+  user1_elo REAL NOT NULL DEFAULT 1000,
+  user2_elo REAL NOT NULL DEFAULT 1000
 );

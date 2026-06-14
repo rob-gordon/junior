@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import type { Filter } from "@/lib/api";
+import { isUser, partnerOf, VOTE_COL } from "@/lib/user";
 
-type User = "rob" | "camille";
-
-function isUser(v: string | null): v is User {
-  return v === "rob" || v === "camille";
-}
 function isFilter(v: string | null): v is Filter {
   return v === "new" || v === "yes" || v === "no" || v === "reconsider";
 }
@@ -34,13 +30,13 @@ export async function GET(request: NextRequest) {
   const rawLimit = Number(request.nextUrl.searchParams.get("limit"));
   const limit = Math.max(1, Math.min(100, Number.isFinite(rawLimit) && rawLimit > 0 ? Math.floor(rawLimit) : 50));
 
-  const column = user === "rob" ? "rob_vote" : "camille_vote";
+  const column = VOTE_COL[user];
   const clauses: string[] = [];
   const args: (string | number)[] = [];
 
   if (filter === "reconsider") {
-    const myCol = user === "rob" ? "rob_vote" : "camille_vote";
-    const partnerCol = user === "rob" ? "camille_vote" : "rob_vote";
+    const myCol = VOTE_COL[user];
+    const partnerCol = VOTE_COL[partnerOf(user)];
     clauses.push(`${myCol} = ? AND ${partnerCol} = ?`);
     args.push("no", "yes");
   } else {
@@ -63,7 +59,7 @@ export async function GET(request: NextRequest) {
 
   const result = await db.execute({
     sql: `SELECT id, name, meaning, origin, description, added_at,
-                 rob_vote, camille_vote, rob_elo, camille_elo
+                 user1_vote, user2_vote, user1_elo, user2_elo
           FROM names
           WHERE ${clauses.join(" AND ")}
           ORDER BY added_at DESC, id DESC

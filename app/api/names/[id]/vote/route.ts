@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { isUser, VOTE_COL } from "@/lib/user";
 
 export async function PATCH(
   request: NextRequest,
@@ -12,24 +13,24 @@ export async function PATCH(
   }
 
   const body = (await request.json()) as { user?: string; vote?: string };
-  const user = body.user;
+  const user = body.user ?? null;
   const vote = body.vote;
 
-  if (user !== "rob" && user !== "camille") {
+  if (!isUser(user)) {
     return NextResponse.json({ error: "invalid user" }, { status: 400 });
   }
   if (vote !== "yes" && vote !== "no") {
     return NextResponse.json({ error: "invalid vote" }, { status: 400 });
   }
 
-  const column = user === "rob" ? "rob_vote" : "camille_vote";
+  const column = VOTE_COL[user];
 
   // Transition guard: only UPDATE when the value actually changes, so idempotent
   // re-votes are no-ops and match celebration only fires on a real transition.
   const result = await db.execute({
     sql: `UPDATE names SET ${column} = ?
           WHERE id = ? AND (${column} IS NULL OR ${column} != ?)
-          RETURNING rob_vote, camille_vote`,
+          RETURNING user1_vote, user2_vote`,
     args: [vote, numericId, vote],
   });
 
@@ -48,8 +49,8 @@ export async function PATCH(
   const row = result.rows[0];
   const isMatch =
     vote === "yes" &&
-    row.rob_vote === "yes" &&
-    row.camille_vote === "yes";
+    row.user1_vote === "yes" &&
+    row.user2_vote === "yes";
 
   return NextResponse.json({ ok: true, match: isMatch });
 }
