@@ -23,6 +23,14 @@ const fraunces = Fraunces({
 export const metadata: Metadata = {
   title: "Junior",
   description: `Baby name picker for ${participantName("user1")} & ${participantName("user2")}`,
+  appleWebApp: {
+    capable: true,
+    title: "Junior",
+    statusBarStyle: "default",
+  },
+  icons: {
+    apple: "/icons/icon-192x192.png",
+  },
 };
 
 export default function RootLayout({
@@ -36,6 +44,14 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
+        {/* Capture the install prompt as early as possible — it can fire before
+            React mounts. InstallPrompt reads window.__bip on mount. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "window.__bip=null;window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__bip=e;});window.addEventListener('appinstalled',function(){window.__bip=null;});",
+          }}
+        />
         <AppShell>{children}</AppShell>
       </body>
     </html>
