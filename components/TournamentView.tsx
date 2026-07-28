@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useCallback, useEffect, useState } from "react";
 import {
+  getSettings,
   getTournamentPair,
   recordTournamentResult,
   type NameRow,
@@ -24,6 +25,14 @@ export default function TournamentView({ user, onExit }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [notEnough, setNotEnough] = useState(false);
   const [committing, setCommitting] = useState<"left" | "right" | null>(null);
+  const [lastName, setLastName] = useState("");
+
+  useEffect(() => {
+    // Best-effort: comparing works fine without a last name configured.
+    getSettings()
+      .then((s) => setLastName(s.babyLastName))
+      .catch(() => {});
+  }, []);
 
   const fetchNextPair = useCallback(
     async (exclude: number[]) => {
@@ -139,7 +148,12 @@ export default function TournamentView({ user, onExit }: Props) {
                     transition={{ duration: 0.3 }}
                     className="rounded-3xl border border-surface-border bg-surface p-8 shadow-md text-center active:scale-[0.98] transition"
                   >
-                    <NameCard name={name} size="lg" expanded />
+                    <NameCard
+                      name={name}
+                      lastName={lastName || undefined}
+                      size="lg"
+                      expanded
+                    />
                   </motion.button>
                 );
               })}

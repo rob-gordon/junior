@@ -99,6 +99,19 @@ export function recordTournamentResult(
   });
 }
 
+export type Settings = { babyLastName: string };
+
+export function getSettings(): Promise<Settings> {
+  return jsonFetch("/api/settings");
+}
+
+export function updateSettings(settings: Settings): Promise<Settings> {
+  return jsonFetch("/api/settings", {
+    method: "PUT",
+    body: JSON.stringify(settings),
+  });
+}
+
 export type ExtractedName = {
   name: string;
   meaning?: string;

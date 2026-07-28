@@ -1,9 +1,12 @@
 "use client";
 
 import type { NameRow } from "@/lib/api";
+import FitText from "./FitText";
 
 type Props = {
   name: NameRow;
+  // When set, renders "First Last" on one line, auto-shrinking to fit.
+  lastName?: string;
   size?: "sm" | "md" | "lg";
   expanded?: boolean;
   onToggle?: () => void;
@@ -17,6 +20,7 @@ const sizeClasses: Record<NonNullable<Props["size"]>, string> = {
 
 export default function NameCard({
   name,
+  lastName,
   size = "md",
   expanded = false,
   onToggle,
@@ -29,11 +33,18 @@ export default function NameCard({
       onClick={onToggle}
       className={onToggle ? "cursor-pointer" : undefined}
     >
-      <div
-        className={`font-bold tracking-tight text-balance leading-[1.05] ${sizeClasses[size]}`}
-      >
-        {name.name}
-      </div>
+      {lastName ? (
+        <FitText
+          text={`${name.name} ${lastName}`}
+          className={`font-bold tracking-tight leading-[1.05] ${sizeClasses[size]}`}
+        />
+      ) : (
+        <div
+          className={`font-bold tracking-tight text-balance leading-[1.05] ${sizeClasses[size]}`}
+        >
+          {name.name}
+        </div>
+      )}
       {showDetails && hasMeta && (
         <div className="text-sm text-muted-foreground mt-3">
           {[name.origin, name.meaning].filter(Boolean).join(" · ")}

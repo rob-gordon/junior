@@ -46,6 +46,10 @@ export default function BottomNav({
         <button onClick={onHowItWorks} className="underline-offset-2 hover:underline">
           How it works
         </button>
+        <span aria-hidden>·</span>
+        <Link href="/settings" className="underline-offset-2 hover:underline">
+          Settings
+        </Link>
         {canInstall && (
           <>
             <span aria-hidden>·</span>
